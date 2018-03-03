@@ -1,10 +1,32 @@
 const IS_DEMO = true;
 
-const colors = [
-    [255,0,0],
-    [0,255,0],
-    [0,0,255]
+const colorPalette = [
+    {
+        start: [46, 38, 38], // #2E2626
+        stop: [252, 207, 204] // #FCCFCC
+    },
+    {
+        start: [46, 27, 7], // #2E1B07
+        stop: [252, 146, 38] // #FC9226
+    },
+    {
+        start: [38, 47, 32], // #262F20
+        stop: [205, 255, 175] // #CDFFAF
+    },
+    {
+        start: [20, 31, 47], // #141F2F
+        stop: [106, 170, 255] // #6AAAFF
+    },
+    {
+        start: [29, 17, 30], // #1D111E
+        stop: [159, 91, 161] // #9F5BA1
+    },
+    {
+        start: [12, 30, 6], // #0C1E06
+        stop: [100, 181, 70] // #64b546
+    }
 ];
+
 
 
 const MODE_SETUP = 'SETUP';
@@ -35,10 +57,23 @@ class App {
 
     }
 
+    getColor(type, intensivity) {
+        const colorDef = colorPalette[type];
+        const color = [
+            Math.ceil(colorDef.start[0] + (colorDef.stop[0] - colorDef.start[0])*intensivity),
+            Math.ceil(colorDef.start[1] + (colorDef.stop[1] - colorDef.start[1])*intensivity),
+            Math.ceil(colorDef.start[2] + (colorDef.stop[2] - colorDef.start[2])*intensivity),
+        ]
+        console.log('get Color', color.join(','));
+
+
+        return 'rgb(' + color.join(',') + ')';
+    }
+
     generateEmptyPolygon() {
         return {
             pos: [],
-            colorId: 0,
+            typeId: 0,
             cut: {
                 x: 1,
                 y: 1
@@ -60,7 +95,7 @@ class App {
             this.renderElement({
                 pos: [...this.currentPolygon.pos, this.mousePosition],
                 cut: {x:1,y:1},
-                colorId: this.currentPolygon.colorId,
+                typeId: this.currentPolygon.typeId,
                     intensity: 1,
             });
         }
@@ -73,7 +108,7 @@ class App {
         elem.pos.forEach(function(x) {
             c.lineTo(...x);
         });
-        c.fillStyle = 'rgba(' + (colors[elem.colorId]).join(',') + ',' + elem.intensity + ')';
+        c.fillStyle = this.getColor(elem.typeId, elem.intensity);
         c.fill();
     }
 
@@ -124,11 +159,11 @@ class App {
             return;
         }
 
-        if (CURRENT_MODE === MODE_SETUP) {
+        if (this.mode === MODE_SETUP) {
             console.log(this.currentPolygon);
             if (key === 'Enter') {
                 this.addPolygon(this.currentPolygon);
-                this.currentPolygon = generateEmptyPoly();
+                this.currentPolygon = this.generateEmptyPolygon();
             }
 
             if (key === 'ArrowRight') {
@@ -148,7 +183,7 @@ class App {
                 this.currentPolygon.cut.y--;
             }
             if (key === 'm') {
-                this.currentPolygon.colorId = (this.currentPolygon.colorId + 1) % colors.length;
+                this.currentPolygon.typeId = (this.currentPolygon.typeId + 1) % colorPalette.length;
             }
 
             if (key === 'x') {
@@ -159,6 +194,15 @@ class App {
                 this.elements = [];
                 this.currentPolygon = this.generateEmptyPolygon();
             }
+
+            if( key === 's') {
+                localStorage.setItem('mapping', JSON.stringify(this.elements));
+            }
+
+            if(key === 'r') {
+                this.elements = JSON.parse(localStorage.getItem('mapping'));
+            }
+
             this.dbg('cut' + JSON.stringify(this.currentPolygon.cut));
         }
 
@@ -190,28 +234,11 @@ class App {
 
     analyzeAudio(data) {
         this.elements.forEach(e => {
-            e.intensity = data[e.colorId];
+            e.intensity = data[e.typeId];
         })
         this.render();
     }
 }
-
-
-// const elements = [
-//     {
-//         cut: {
-//             x: 3,
-//             y: 2
-//         },
-//         pos: [[206,367], [200,520], [509, 521], [514,370]],
-//         colorId: 0
-//     },
-//     {
-//         cut: {x: 2,y:4},
-//         pos: [[675,229], [670, 528], [828, 533], [829,232]],
-//         colorId: 1
-//     }
-// ];
 
 var elements = [];
 
@@ -220,48 +247,6 @@ const debugEl = document.getElementById('debug');
 function debugText(text) {
     debugEl.innerHTML = text;
 }
-
-// function setup() {
-//     const bg = document.getElementById('bg');
-//     const vis = document.getElementById('vis');
-//     const body = document.querySelector('body');
-//     vis.width = body.offsetWidth;
-//     vis.height = body.offsetHeight;
-//     if (!IS_DEMO) {
-//         bg.style.display = 'none';
-//     }
-//
-//     vis.addEventListener('mousemove', onMouseMove);
-//     vis.addEventListener('click', onMouseClick);
-//     document.addEventListener('keydown', onButtonClicked);
-//
-//     draw(vis);
-// }
-//
-// function drawInit(vis) {
-//     //console.log('draw Init');
-//     draw(vis);
-//     setTimeout(drawInit.bind(this,vis), 100);
-// }
-//
-// function draw(canvas) {
-//     //return;
-//     const c = canvas.getContext('2d');
-//     c.clearRect(0, 0, canvas.width, canvas.height);
-//     elements.forEach(drawElement.bind(null, c))
-// }
-//
-// function drawElement(c, elem) {
-//     c.beginPath();
-//     c.moveTo(...elem.pos[elem.pos.length -1]);
-//     elem.pos.forEach(function(x) {
-//         c.lineTo(...x);
-//     });
-//     console.log('color',  'rgba(' + (colors[elem.colorId]).join(',') + ',' + elem.intensity + ')');
-//     c.fillStyle = 'rgba(' + (colors[elem.colorId]).join(',') + ',' + elem.intensity + ')';
-//     c.fill();
-//     //e.colorId = (e.colorId + 1) % colors.length;
-// }
 
 function socketConnect() {
 
@@ -272,53 +257,5 @@ function socketConnect() {
 
 const app = new App();
 setInterval(function() {
-    app.analyzeAudio([Math.random(), Math.random(), Math.random()]);
-},10);
-
-
-
-
-function generateEmptyPoly() {
-    return {
-        pos: [],
-        colorId: 0,
-        cut: {
-            x: 1,
-            y: 1
-        }
-    }
-}
-
-
-// available modes: 'SETUP', 'PLAY'
-var CURRENT_MODE = MODE_SETUP;
-var currentPoly = generateEmptyPoly();
-// var elements = [];
-
-function onMouseMove(evt) {
-    //console.log(evt);
-    debugText(evt.clientX + ',' + evt.clientY);
-    //debug.
-    //debug
-}
-
-function onMouseClick(evt) {
-    console.log(evt);
-    if (CURRENT_MODE === MODE_SETUP) {
-        currentPoly.pos.push([evt.clientX, evt.clientY]);
-    }
-}
-
-function onButtonClicked(evt) {
-    const key = evt.key;
-    if (CURRENT_MODE === MODE_SETUP) {
-        if (key === 'Enter') {
-            elements.push(currentPoly);
-            currentPoly = generateEmptyPoly();
-        }
-    }
-}
-
-function drawCurrent() {
-
-}
+    app.analyzeAudio([Math.random(), Math.random(), Math.random(),Math.random(), Math.random(), Math.random()]);
+},100);
