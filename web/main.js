@@ -1,5 +1,7 @@
 const IS_DEMO = true;
 
+const PROJECT_MODE = 0; // 0 is synth, 1 is socket from device audio
+
 const colorPalette = [
     {
         start: [46, 38, 38], // #2E2626
@@ -27,6 +29,17 @@ const colorPalette = [
     }
 ];
 
+const synthKeyMap = {
+    'a': 'c4',
+    's': 'd4',
+    'd': 'e4',
+    'f': 'f4',
+    'g': 'g4',
+    'h': 'a4',
+    'j': 'b4',
+    'k': 'c5'
+};
+
 
 
 const MODE_SETUP = 'SETUP';
@@ -45,26 +58,81 @@ class App {
         this.mode = MODE_SETUP;
         this.currentPolygon = this.generateEmptyPolygon();
         this.mousePosition = [0,0];
+        this.currentValues = [
+            {
+                current: 0.5,
+                direction: 0
+            },
+            {
+                current: 0.5,
+                direction: 0
+            },
+            {
+                current: 0.5,
+                direction: 0
+            },
+            {
+                current: 0.5,
+                direction: 0
+            },
+            {
+                current: 0.5,
+                direction: 0
+            },
+            {
+                current: 0.5,
+                direction: 0
+            }
+        ]
 
         // Bind events
         this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
         this.canvas.addEventListener('click', this.onMouseClick.bind(this));
         document.addEventListener('keydown', this.onButtonPressed.bind(this));
+        document.addEventListener('keyup', this.onButtonUp.bind(this));
+
+
+        if (PROJECT_MODE === 0) {
+            this.synth = new Tone.PolySynth(6, Tone.Synth, {
+                "oscillator": {
+                    "partials": [0,2,3,4]
+                }
+            }).toMaster();
+        }
 
 
 
         this.render();
+        this.mainLoop();
 
     }
 
+    mainLoop() {
+        this.runLoop();
+        setTimeout(this.mainLoop.bind(this), 50);
+    }
+
+    runLoop() {
+        this.currentValues.forEach(function(v) {
+            if (v.direction > 0) {
+                v.current = Math.min(1, v.current + 0.2);
+            }
+            if (v.direction < 0) {
+                v.current = Math.max(0, v.current - 0.05);
+            }
+        });
+        this.render();
+    }
+
     getColor(type, intensivity) {
+        intensivity = this.currentValues[type].current;
         const colorDef = colorPalette[type];
         const color = [
             Math.ceil(colorDef.start[0] + (colorDef.stop[0] - colorDef.start[0])*intensivity),
             Math.ceil(colorDef.start[1] + (colorDef.stop[1] - colorDef.start[1])*intensivity),
             Math.ceil(colorDef.start[2] + (colorDef.stop[2] - colorDef.start[2])*intensivity),
         ]
-        console.log('get Color', color.join(','));
+        // console.log('get Color', color.join(','));
 
 
         return 'rgb(' + color.join(',') + ')';
@@ -144,7 +212,31 @@ class App {
         this.render();
     }
 
+    onButtonUp(evt) {
+        console.log('button up', evt);
+        const key = evt.key;
+        if (PROJECT_MODE === 0) {
+            var idx = Object.keys(synthKeyMap).indexOf(key);
+            if(idx > -1) {
+                this.musicKeyDown(idx);
+            }
+        }
+    }
+
+    musicKeyUp(idx) {
+        this.synth.triggerAttack(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
+        this.currentValues[idx].direction = +1;
+    }
+
+    musicKeyDown(idx) {
+        this.synth.triggerRelease(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
+        this.currentValues[idx].direction = -1;
+    }
+
     onButtonPressed(evt) {
+        if(evt.repeat) {
+            return;
+        }
         console.log('button', evt);
         const key = evt.key;
 
@@ -157,6 +249,15 @@ class App {
         if (key === 'q') {
             this.setPrevMode();
             return;
+        }
+
+
+        //
+        if (PROJECT_MODE === 0) {
+            var idx = Object.keys(synthKeyMap).indexOf(key);
+            if(idx > -1) {
+                this.musicKeyUp(idx);
+            }
         }
 
         if (this.mode === MODE_SETUP) {
@@ -255,7 +356,39 @@ function socketConnect() {
 
 //setTimeout(setup, 0);
 
+const allowedKeys = [60,62,64,65,67,69,71,72];
+
 const app = new App();
-setInterval(function() {
-    app.analyzeAudio([Math.random(), Math.random(), Math.random(),Math.random(), Math.random(), Math.random()]);
-},100);
+if (PROJECT_MODE !== 0) {
+    setInterval(function () {
+        app.analyzeAudio([Math.random(), Math.random(), Math.random(), Math.random(), Math.random(), Math.random()]);
+    }, 100);
+}
+
+if (PROJECT_MODE === 0) {
+    navigator.requestMIDIAccess()
+        .then(function(access) {
+
+            // Get lists of available MIDI controllers
+            const inputs = Array.from(access.inputs.values());
+            console.log(inputs)
+            inputs[1].onmidimessage =function(m) {
+                console.log(m.data)
+                if (m.data[0] === 145 && allowedKeys.indexOf(m.data[1]) > -1) {
+                    var keyNr = allowedKeys.indexOf(m.data[1]);
+                    console.log('key nr', keyNr);
+                    app.musicKeyUp(keyNr);
+                }
+                if (m.data[0] === 129 && allowedKeys.indexOf(m.data[1]) > -1) {
+                    var keyNr = allowedKeys.indexOf(m.data[1]);
+                    app.musicKeyDown(keyNr);
+                }
+            };
+
+            access.onstatechange = function(e) {
+
+                // Print information about the (dis)connected MIDI controller
+                console.log(e.port.name, e.port.manufacturer, e.port.state);
+            };
+        });
+}
