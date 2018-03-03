@@ -93,11 +93,30 @@ class App {
 
 
         if (PROJECT_MODE === 0) {
-            this.synth = new Tone.PolySynth(6, Tone.Synth, {
-                "oscillator": {
-                    "partials": [0,2,3,4]
-                }
-            }).toMaster();
+            this.wah = new Tone.AutoWah().toMaster();
+            this.synth =  new Tone.PolySynth(3, Tone.Synth, {
+                "oscillator" : {
+                    "type" : "fatsawtooth",
+                    "count" : 3,
+                    "spread" : 30
+                },
+                "envelope": {
+                    "attack": 0.01,
+                    "decay": 0.1,
+                    "sustain": 0.5,
+                    "release": 0.4,
+                    "attackCurve" : "exponential"
+                },
+            }).connect(this.wah).toMaster();
+
+            // this.synth = new Tone.SimpleFM();
+
+            // this.chorus = new Tone.Chorus(4, 20.5, 20.5);
+            // this.distortion = new Tone.Distortion(0.5);
+            // this.synth.connect(this.chorus);
+            // this.synth = this.synth.connect(this.distortion);
+
+            // this.synth = this.synth.toMaster();
         }
 
 
@@ -382,6 +401,53 @@ if (PROJECT_MODE === 0) {
                 if (m.data[0] === 129 && allowedKeys.indexOf(m.data[1]) > -1) {
                     var keyNr = allowedKeys.indexOf(m.data[1]);
                     app.musicKeyDown(keyNr);
+                }
+
+                if (m.data[0] === 176) {
+                    const device = m.data[1];
+                    const value = m.data[2] / 127;
+                    if (device === 48) {
+                        // attack
+                        app.synth.set({
+                            envelope: {
+                                attack: 20 * value
+                            }
+                        });
+                        console.log('APP', app);
+                    }
+
+                    if (device === 49) {
+                        app.synth.set({
+                            envelope: {
+                                decay: 20*value
+                            }
+                        })
+                    }
+
+                    if (device === 50) {
+                        app.synth.set({
+                            envelope: {
+                                sustain: 20 * value
+                            }
+                        })
+                    }
+
+                    if (device === 51) {
+
+                        app.synth.set({
+                            envelope: {
+                                release: 20*value
+                            }
+                        })
+                    }
+
+                    if (device === 55) {
+                        app.synth.set({
+                            oscillator: {
+                                spread: 100*value
+                            }
+                        })
+                    }
                 }
             };
 
