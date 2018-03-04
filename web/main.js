@@ -244,13 +244,34 @@ class App {
 
     musicKeyUp(idx) {
         this.synth.triggerAttack(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
-        this.currentValues[idx].direction = +1;
+        if (this.currentValues[idx]) {
+            this.currentValues[idx].direction = +1;
+        }
     }
 
     musicKeyDown(idx) {
         this.synth.triggerRelease(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
-        this.currentValues[idx].direction = -1;
+        if (this.currentValues[idx]) {
+            this.currentValues[idx].direction = -1;
+        }
     }
+
+    convertToFreq(m) {
+        return Math.pow(2, (m-69)/12)*440;
+    }
+
+    musicKeyUpMidi(m, velocity) {
+        if (!velocity) {
+            velocity = 1;
+        }
+        this.synth.triggerAttack(this.convertToFreq(m), null, velocity);
+    }
+
+    musicKeyDownMidi(m) {
+        this.synth.triggerRelease(this.convertToFreq(m));
+    }
+
+
 
     onButtonPressed(evt) {
         if(evt.repeat) {
@@ -331,25 +352,62 @@ class App {
     }
 
     addPolygon(poly) {
-
-        const ps = poly.pos;
-        const x0 = ps[0][0];
-        const y0 = ps[0][1];
-        const x1 = ps[1][0];
-        const y1 = ps[1][1];
-        const x2 = ps[2][0];
-        const y2 = ps[2][1];
-        const x3 = ps[3][0];
-        const y3 = ps[3][1];
-
-        const x1d = x0 - x1;
-        const y1d = y0 - y1;
-        const x2d = x2 - x3;
-        const y2d = y2 - y3;
-
-
+        //
+        // var n=2;
+        // var m=2;
+        //
+        //
+        // const ps = poly.pos;
+        // var x0 = ps[0][0];
+        // var y0 = ps[0][1];
+        // var x1 = ps[1][0];
+        // var y1 = ps[1][1];
+        // var x2 = ps[2][0];
+        // var y2 = ps[2][1];
+        // var x3 = ps[3][0];
+        // var y3 = ps[3][1];
+        //
+        // var x0d = (x3 - x0) / n;
+        // var y0d = (y3 - y0) / m;
+        //
+        // var x1d = (x2 - x1) / n;
+        // var y1d = (y2 - y1) / m;
+        //
+        // var x2d = (x1 - x0) / n;
+        // var y2d = (y1 - y0) / m;
+        //
+        //
+        // var cx0 = x0;
+        // var cy0 = y0;
+        //
+        // var cx1,cx2,cx3,cy1,cy2,cy3;
 
         this.elements.push(this.currentPolygon);
+        // for(var i=0;i<2;i++) {
+        //     for (var j = 0; j < 2; j++) {
+        //
+        //         cx0 = x0 + j * x2d + i*x0d;
+        //         cy0 = y0 + j * y2d + i*y0d;
+        //
+        //         cx3 = x0 + j * x2d + (i + 1) * x0d;
+        //         cy3 = y0 + j * y2d + (i + 1) * y0d;
+        //
+        //         cx1 = x0 + (j + 1) * x2d;
+        //         cy1 = y0 + (j + 1) * y2d;
+        //
+        //         cx2 = cx1 + (j + 1) * x1d;
+        //         cy2 = cy1 + (j + 1) * y1d;
+        //
+        //         console.log('X', [cx0, cy0], [cx1, cy1], [cx2, cy2], [cx3, cy3]);
+        //
+        //         this.elements.push({
+        //             pos: [[cx0, cy0], [cx1, cy1], [cx2, cy2], [cx3, cy3]],
+        //             typeId: j + i*2+2,
+        //             cut: {x: 1, y: 1}
+        //         })
+        //     }
+        // }
+
     }
 
     analyzeAudio(data) {
@@ -384,6 +442,27 @@ if (PROJECT_MODE !== 0) {
     }, 100);
 }
 
+const keys = [];
+for(var i=0;i<40;i++) {
+    keys.push(0);
+}
+
+function animationStep(i, o) {
+    for(var j=0;j<8;j++) {
+        o.send([144, j+8*i, 5]);
+    }
+}
+
+
+function startAnimation(o) {
+    for(var i=0;i<40;i++) {
+        o.send([144, i, 0]);
+    }
+    for(var i=0;i<5;i++) {
+        setTimeout(animationStep.bind(null, i, o), i*100);
+    }
+}
+
 if (PROJECT_MODE === 0) {
     navigator.requestMIDIAccess()
         .then(function(access) {
@@ -391,16 +470,37 @@ if (PROJECT_MODE === 0) {
             // Get lists of available MIDI controllers
             const inputs = Array.from(access.inputs.values());
             console.log(inputs)
+
+            const outputs = Array.from(access.outputs.values());
+            console.log('o', outputs);
+
+            startAnimation(outputs[1]);
+
             inputs[1].onmidimessage =function(m) {
-                console.log(m.data)
+
+                const key = m.data[1];
+
+                if(m.data[0] === 144) {
+                    keys[key] = (keys[key] + 1) % 4;
+                    console.log(keys[key]);
+                    outputs[1].send([144, m.data[1], keys[key] === 0? 0 : 2*keys[key]+1]);
+                }
+
+
                 if (m.data[0] === 145 && allowedKeys.indexOf(m.data[1]) > -1) {
                     var keyNr = allowedKeys.indexOf(m.data[1]);
                     console.log('key nr', keyNr);
                     app.musicKeyUp(keyNr);
-                }
-                if (m.data[0] === 129 && allowedKeys.indexOf(m.data[1]) > -1) {
+                } else if (m.data[0] === 129 && allowedKeys.indexOf(m.data[1]) > -1) {
                     var keyNr = allowedKeys.indexOf(m.data[1]);
                     app.musicKeyDown(keyNr);
+                } else {
+                    // Playing note
+                    if (m.data[0] === 145) {
+                        app.musicKeyUpMidi(m.data[1], 0.5);
+                    } else if(m.data[0] === 129) {
+                        app.musicKeyDownMidi(m.data[1]);
+                    }
                 }
 
                 if (m.data[0] === 176) {
@@ -457,4 +557,31 @@ if (PROJECT_MODE === 0) {
                 console.log(e.port.name, e.port.manufacturer, e.port.state);
             };
         });
+} else {
+    console.log('MODE 2');
+    window.THRESHOLD = 50;
+   var socket = new WebSocket('ws://192.168.43.125:8765');
+    // var socket = new WebSocket('ws://localhost:8765');
+    socket.onmessage = function (e) {
+        try {
+            var msg = JSON.parse(e.data);
+            console.log('Got from socket', msg);
+            for(var i=0;i<6;i++) {
+                app.currentValues[i] = {
+                    current: msg[i] / window.THRESHOLD,
+                    direction: -1
+                }
+            }
+        } catch(e) {
+
+        }
+    };
+
+    socket.onopen = function(e) {
+        console.log('On open');
+    };
+
+    socket.onerror = function(e) {
+        console.error('Error while connecting with Websocket');
+    };
 }
