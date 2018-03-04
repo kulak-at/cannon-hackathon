@@ -3,6 +3,7 @@ import struct
 import numpy as np
 import websockets
 import asyncio
+import json
 
 CHUNK = 2**11
 RATE = 44100
@@ -29,22 +30,26 @@ def animate(stream, MAX_y):
     y_R = y[1::2]
     Y_R = abs(np.fft.fft(y_R, nFFT))
 
-    print(Y_R / 6)
-    return
-    # fft = Y_R[:int(len(Y_R)/2)]
-    # print(fft)
-    freq_initial = np.fft.fftfreq(CHUNK, 1.0/RATE)
-    freq = freq_initial[:int(len(freq_initial) / 2)]
-
-
-    print(np.mean(freq[np.where(freq < 2000)]))
+    #print(Y_R / 6)
+    return (Y_R/6).tolist()
+    # # fft = Y_R[:int(len(Y_R)/2)]
+    # # print(fft)
+    # freq_initial = np.fft.fftfreq(CHUNK, 1.0/RATE)
+    # freq = freq_initial[:int(len(freq_initial) / 2)]
+    #
+    #
+    # renp.mean(freq[np.where(freq < 2000)]))
 
 
 async def hello(websocket, path):
     greeting = "Hello socket, my old friend"
-    print(greeting)
 
-start_server = websockets.serve(hello, 'localhost', 8765)
+    print(greeting)
+    while True:
+        await websocket.send(json.dumps(animate(streamGlobal, MAX_y)))
+
+
+start_server = websockets.serve(hello, '0.0.0.0', 8765)
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
