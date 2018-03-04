@@ -1,6 +1,6 @@
 const IS_DEMO = true;
 
-const PROJECT_MODE = 0; // 0 is synth, 1 is socket from device audio
+const PROJECT_MODE = 1; // 0 is synth, 1 is socket from device audio
 
 const colorPalette = [
     {
@@ -344,6 +344,28 @@ class App {
                 this.elements = JSON.parse(localStorage.getItem('mapping'));
             }
 
+            if (key === 'p') {
+                this.elements = [];
+                console.log('load');
+                for(var i=0;i<6;i++) {
+                    this.elements.push({
+                        pos: [
+                            [100*i,0],
+                            [100*i,100],
+                            [100+100*i,100],
+                            [100*i+100,0]
+                            // [i*300 + 100, 0],
+                            // [i*300 + 350, 0],
+                            // [i*300 + 150, 250],
+                            // [i*300 + 350, 0],
+                        ],
+                        cut: {x:1,y:1},
+                        typeId: i,
+                    })
+                }
+                this.render();
+            }
+
             this.dbg('cut' + JSON.stringify(this.currentPolygon.cut));
         }
 
@@ -560,15 +582,15 @@ if (PROJECT_MODE === 0) {
 } else {
     console.log('MODE 2');
     window.THRESHOLD = 50;
-   var socket = new WebSocket('ws://192.168.43.125:8765');
-    // var socket = new WebSocket('ws://localhost:8765');
+   // var socket = new WebSocket('ws://192.168.43.125:8765');
+    var socket = new WebSocket('ws://localhost:8765');
     socket.onmessage = function (e) {
         try {
             var msg = JSON.parse(e.data);
             console.log('Got from socket', msg);
             for(var i=0;i<6;i++) {
                 app.currentValues[i] = {
-                    current: msg[i] / window.THRESHOLD,
+                    current: Math.min(1, msg[i] / window.THRESHOLD),
                     direction: -1
                 }
             }
@@ -584,4 +606,24 @@ if (PROJECT_MODE === 0) {
     socket.onerror = function(e) {
         console.error('Error while connecting with Websocket');
     };
+
+
+    // using knob to control threshold
+    navigator.requestMIDIAccess()
+        .then(function(access) {
+
+            // Get lists of available MIDI controllers
+            const inputs = Array.from(access.inputs.values());
+            console.log(inputs)
+
+            const outputs = Array.from(access.outputs.values());
+            console.log('o', outputs);
+
+            inputs[1].onmidimessage = function (m) {
+                console.log(m.data);
+                if (m.data[0] === 176 && m.data[1] === 52) {
+                    window.THRESHOLD = (m.data[2]/127)*200 + 0.5;
+                }
+            }
+        });
 }

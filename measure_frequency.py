@@ -28,6 +28,8 @@ frequency_threshold = [
     {"start": 6000, "end": 20000}]
 
 
+SPECTRUM_SHIFT = 1
+
 def animate(stream, MAX_y):
     n = int(max(stream.get_read_available() / nFFT, 1) * nFFT)
     data = stream.read(n)
@@ -36,9 +38,11 @@ def animate(stream, MAX_y):
     Y_R = abs(np.fft.fft(y_R, nFFT))
     li = []
     for n in frequency_threshold:
-        nx = math.floor(n["start"]*nFFT/RATE)
-        ny = math.ceil(n["end"]*nFFT/RATE)
-        li.append(max(Y_R[nx:ny])*(ny-nx))
+        nx = math.floor(n["start"]*SPECTRUM_SHIFT*nFFT/RATE)
+        ny = math.ceil(n["end"]*SPECTRUM_SHIFT*nFFT/RATE)
+        d = Y_R[nx:ny]
+        val = max(d*(ny-nx)) * np.mean(d)
+        li.append(val)
     return li
 
 async def hello(websocket, path):
@@ -54,8 +58,8 @@ start_server = websockets.serve(hello, '0.0.0.0', 8765)
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
 
-for i in range(int(10*44100/1024)): #go for a few seconds
-    animate(streamGlobal, MAX_y)
+# for i in range(int(10*44100/1024)): #go for a few seconds
+#     animate(streamGlobal, MAX_y)
 
 
 
