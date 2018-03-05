@@ -1,31 +1,31 @@
 const IS_DEMO = true;
 
-const PROJECT_MODE = 1; // 0 is synth, 1 is socket from device audio
+const PROJECT_MODE = 0; // 0 is synth, 1 is socket from device audio
 
 const colorPalette = [
     {
-        start: [46, 38, 38], // #2E2626
-        stop: [252, 207, 204] // #FCCFCC
+        start: [0, 0, 0], // #2E2626
+        stop: [255, 0, 0] // #FCCFCC
     },
     {
-        start: [46, 27, 7], // #2E1B07
-        stop: [252, 146, 38] // #FC9226
+        start: [0, 0, 0], // #2E1B07
+        stop: [0, 255, 0] // #FC9226
     },
     {
-        start: [38, 47, 32], // #262F20
-        stop: [205, 255, 175] // #CDFFAF
+        start: [0, 0, 0], // #262F20
+        stop: [0, 0, 255] // #CDFFAF
     },
     {
-        start: [20, 31, 47], // #141F2F
-        stop: [106, 170, 255] // #6AAAFF
+        start: [0,0, 0], // #141F2F
+        stop: [255,255,0] // #6AAAFF
     },
     {
-        start: [29, 17, 30], // #1D111E
-        stop: [159, 91, 161] // #9F5BA1
+        start: [0, 0,0], // #1D111E
+        stop: [0,255,255] // #9F5BA1
     },
     {
-        start: [12, 30, 6], // #0C1E06
-        stop: [100, 181, 70] // #64b546
+        start: [0,0,0], // #0C1E06
+        stop: [255,0,255] // #64b546
     }
 ];
 
@@ -44,6 +44,8 @@ const synthKeyMap = {
 
 const MODE_SETUP = 'SETUP';
 const MODE_PLAY = 'PLAY';
+
+const keyMap = [0,2,4,5,7,9];
 
 
 class App {
@@ -243,17 +245,32 @@ class App {
     }
 
     musicKeyUp(idx) {
-        this.synth.triggerAttack(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
-        if (this.currentValues[idx]) {
-            this.currentValues[idx].direction = +1;
+        this.musicKeyUpMidi(idx, 1);
+        // this.synth.triggerAttack(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
+        const map = keyMap.indexOf(idx%12);
+        console.log('map', idx, map);
+        if (map > -1) {
+            if (this.currentValues[map]) {
+                this.currentValues[map].direction = +1;
+            }
         }
+        // if (this.currentValues[idx]) {
+        //     this.currentValues[idx].direction = +1;
+        // }
     }
 
     musicKeyDown(idx) {
-        this.synth.triggerRelease(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
-        if (this.currentValues[idx]) {
-            this.currentValues[idx].direction = -1;
+        this.musicKeyDownMidi(idx);
+        // this.synth.triggerRelease(synthKeyMap[Object.keys(synthKeyMap)[idx]]);
+        const map = keyMap.indexOf(idx%12);
+        if (map > -1) {
+            if (this.currentValues[map]) {
+                this.currentValues[map].direction = -1;
+            }
         }
+        // if (this.currentValues[keyMap.indexOf(idx)]) {
+        //     this.currentValues[idx].direction = -1;
+        // }
     }
 
     convertToFreq(m) {
@@ -509,20 +526,21 @@ if (PROJECT_MODE === 0) {
                 }
 
 
-                if (m.data[0] === 145 && allowedKeys.indexOf(m.data[1]) > -1) {
-                    var keyNr = allowedKeys.indexOf(m.data[1]);
+                if (m.data[0] === 145) {
+                    var keyNr = m.data[1]
                     console.log('key nr', keyNr);
                     app.musicKeyUp(keyNr);
-                } else if (m.data[0] === 129 && allowedKeys.indexOf(m.data[1]) > -1) {
-                    var keyNr = allowedKeys.indexOf(m.data[1]);
+                } else if (m.data[0] === 129) {
+                    // var keyNr = allowedKeys.indexOf(m.data[1]);
+                    var keyNr = m.data[1];
                     app.musicKeyDown(keyNr);
-                } else {
-                    // Playing note
-                    if (m.data[0] === 145) {
-                        app.musicKeyUpMidi(m.data[1], 0.5);
-                    } else if(m.data[0] === 129) {
-                        app.musicKeyDownMidi(m.data[1]);
-                    }
+                // } else {
+                //     // Playing note
+                //     if (m.data[0] === 145) {
+                //         app.musicKeyUpMidi(m.data[1], 0.5);
+                //     } else if(m.data[0] === 129) {
+                //         app.musicKeyDownMidi(m.data[1]);
+                //     }
                 }
 
                 if (m.data[0] === 176) {
